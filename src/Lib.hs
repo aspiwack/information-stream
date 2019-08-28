@@ -1,12 +1,15 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Lib where
 
+import Control.Lens hiding (elements)
 import Data.Proxy
+import Debug.Trace
 import GHC.TypeNats
 
 -- There is a more interesting definition of finite types which is to require
@@ -38,3 +41,9 @@ instance Show (Fin n) where
 
 instance KnownNat n => Finite (Fin n) where
   elements = mkFin <$> [0..(upperBound @n - 1)]
+
+display :: Show a => String -> Iso' a a
+display s = iso describe id
+  where
+    describe x =
+      trace (s ++ "\n" ++ show x) `seq` x
