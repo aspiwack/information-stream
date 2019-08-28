@@ -1,13 +1,16 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Lib where
 
 import Control.Lens hiding (elements)
+import Data.Monoid
 import Data.Proxy
 import Debug.Trace
 import GHC.TypeNats
@@ -42,8 +45,30 @@ instance Show (Fin n) where
 instance KnownNat n => Finite (Fin n) where
   elements = mkFin <$> [0..(upperBound @n - 1)]
 
-display :: Show a => String -> Iso' a a
+class Sizeable a where
+  sizeOf :: a -> Double
+
+instance Sizeable a => Sizeable [a] where
+  sizeOf as = getSum $ foldMap (Sum . sizeOf @a) as
+
+newtype Symbols a = Symbols a
+
+-- >>> - logBase 2 (1/8)
+-- 3.0
+
+-- >>> - logBase 2 (1/6)
+-- 2.584962500721156
+
+instance Finite a => Sizeable (Symbols a) where
+  sizeOf (Symbols _) = - logBase 2 (1/(fromIntegral (length (elements @a))))
+
+deriving via (Symbols (Fin n)) instance KnownNat n => Sizeable (Fin n)
+
+instance Sizeable Int where
+  sizeOf i = logBase 2 (fromIntegral i)
+
+display :: (Show a, Sizeable a) => String -> Iso' a a
 display s = iso describe id
   where
     describe x =
-      trace (s ++ "\n" ++ show x) `seq` x
+      trace (s ++ "\n" ++ show x ++ "\nsize: " ++ show (sizeOf x)) `seq` x
