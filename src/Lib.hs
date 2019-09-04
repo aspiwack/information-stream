@@ -60,15 +60,15 @@ newtype Symbols a = Symbols a
 -- 2.584962500721156
 
 instance Finite a => Sizeable (Symbols a) where
-  sizeOf (Symbols _) = - logBase 2 (1/(fromIntegral (length (elements @a))))
+  sizeOf (Symbols _) = logBase 2 (fromIntegral (length (elements @a)))
 
 deriving via (Symbols (Fin n)) instance KnownNat n => Sizeable (Fin n)
 
 instance Sizeable Int where
-  sizeOf i = logBase 2 (fromIntegral i)
+  sizeOf i = logBase 2 (max (fromIntegral i) 2)
 
 display :: (Show a, Sizeable a) => String -> Iso' a a
 display s = iso describe id
   where
     describe x =
-      trace (s ++ "\n" ++ show x ++ "\nsize: " ++ show (sizeOf x)) `seq` x
+      trace (s ++ "\n" ++ show x ++ "\nsize: " ++ show @Int (ceiling (sizeOf x))) `seq` x
