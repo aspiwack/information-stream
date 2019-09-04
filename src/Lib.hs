@@ -10,6 +10,8 @@
 module Lib where
 
 import Control.Lens hiding (elements)
+import Data.List
+import Data.Maybe
 import Data.Monoid
 import Data.Proxy
 import Debug.Trace
@@ -61,10 +63,10 @@ instance Sizeable a => Sizeable [a] where
 
 newtype Symbols a = Symbols a
 
--- >>> - logBase 2 (1/8)
+-- >>> logBase 2 8
 -- 3.0
 
--- >>> - logBase 2 (1/6)
+-- >>> logBase 2 6
 -- 2.584962500721156
 
 instance Finite a => Sizeable (Symbols a) where
@@ -75,8 +77,45 @@ deriving via (Symbols (Fin n)) instance KnownNat n => Sizeable (Fin n)
 instance Sizeable Int where
   sizeOf i = logBase 2 (max (fromIntegral i) 2)
 
+instance Sizeable Integer where
+  sizeOf i = logBase 2 (max (fromIntegral i) 2)
+
 display :: (Show a, Sizeable a) => String -> Iso' a a
 display s = iso describe id
   where
     describe x =
       trace (s ++ "\n" ++ show x ++ "\nsize: " ++ show @Int (ceiling (sizeOf x))) `seq` x
+
+-- x*10^-n , assumed smaller than one
+data Decimal = Decimal Integer Int
+
+instance Show Decimal where
+  show (Decimal x n) = "0." ++ digits x n
+    where
+      digits y p =
+        if y >= 10 ^ (p-1) then show y
+        else "0" ++ digits y (p-1)
+
+instance Sizeable Decimal where
+  sizeOf (Decimal _ n) = (fromIntegral n) * logBase 2 10
+
+-- Assumes that the difference between the two inputs is less than one
+findDecimalBetween :: Rational -> Rational -> Decimal
+findDecimalBetween lo hi = Decimal (ceiling (lo/(10 ^^ (-powerOfTen)))) powerOfTen
+  where
+    powerOfTen = findPowerOfTenBelow (hi - lo)
+
+    findPowerOfTenBelow :: Rational -> Int
+    findPowerOfTenBelow bound = fromJust $ find (\n -> 10^^(-n) < bound) [0..]
+
+-- >>> findDecimalBetween (1/2) (3/4)
+-- 0.5
+
+-- >>> findDecimalBetween (1/3) (1/2)
+-- 0.4
+
+-- >>> findDecimalBetween (1/12345) (2/12345)
+-- 0.00009
+
+-- >>> findDecimalBetween (123/12345) (124/12345)
+-- 0.00997
